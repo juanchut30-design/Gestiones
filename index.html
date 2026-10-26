@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gestiones</title>
+<meta name="description" content="Agenda, audiencias, pasajes y pedidos de las cámaras del despacho.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#24476b">
+<link rel="icon" type="image/png" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gestiones">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="referrer" content="no-referrer">
+<style>
+  :root{ --petroleo:#24476b; --papel:#f4f7fa; --hoja:#fff; --tinta:#1c2b39; --suave:#5d6b78; --linea:#e1e7ee; --calendula:#e8a317; --rojo:#c8412b; }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{margin:0;height:100%;background:var(--papel);color:var(--tinta);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);overflow:hidden}
+  #app{flex:1;width:100%;border:0;display:block;background:var(--papel)}
+  /* Pantalla para pegar el link */
+  #inicio{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:28px 16px calc(28px + env(safe-area-inset-bottom))}
+  .tarjeta{width:100%;max-width:440px;background:var(--hoja);border:1px solid var(--linea);border-radius:18px;padding:24px 20px;box-shadow:0 8px 28px rgba(20,40,60,.08)}
+  .marca{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .marca img{width:52px;height:52px;border-radius:13px}
+  .marca h1{margin:0;font-size:22px}
+  .marca small{display:block;color:var(--suave);font-size:13px}
+  p{line-height:1.5;margin:0 0 12px;font-size:15px}
+  label{display:block;font-weight:600;font-size:14px;margin:14px 0 6px}
+  textarea{width:100%;min-height:86px;font:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;resize:vertical;word-break:break-all}
+  textarea:focus{outline:2px solid var(--petroleo);outline-offset:1px}
+  .botones{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  button,.btn{font:inherit;font-size:15px;font-weight:600;border-radius:10px;padding:11px 16px;border:1px solid var(--linea);background:var(--hoja);color:var(--tinta);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+  button.prim{background:var(--petroleo);border-color:var(--petroleo);color:#fff}
+  .error{color:var(--rojo);font-size:14px;margin-top:8px}
+  .nota{color:var(--suave);font-size:13px;margin-top:16px}
+  /* Cargando */
+  #cargando{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--papel);z-index:5;padding:20px;text-align:center}
+  #cargando img{width:72px;height:72px;border-radius:18px}
+  .spinner{width:28px;height:28px;border:3px solid var(--linea);border-top-color:var(--petroleo);border-radius:50%;animation:gira .8s linear infinite}
+  @keyframes gira{to{transform:rotate(360deg)}}
+  #lento{max-width:320px;color:var(--suave);font-size:14px}
+  /* Aviso para instalar (solo cuando se abre en el navegador, no en la app instalada) */
+  #instalar{display:flex;align-items:center;gap:10px;background:var(--hoja);border-bottom:1px solid var(--linea);padding:9px 12px;font-size:13.5px;line-height:1.35}
+  #instalar span{flex:1}
+  #instalar button{padding:7px 12px;font-size:13.5px}
+  #instalar .cerrar{border:0;background:none;color:var(--suave);font-size:20px;padding:2px 6px}
+</style>
+</head>
+<body>
+
+<div id="instalar" hidden>
+  <span id="instalarTexto"></span>
+  <button type="button" class="prim" id="btnInstalar" hidden>Instalar</button>
+  <button type="button" class="cerrar" id="cerrarInstalar" aria-label="Cerrar">×</button>
+</div>
+
+<main id="inicio" hidden>
+  <div class="tarjeta">
+    <div class="marca"><img src="icons/icon-192.png" alt=""><div><h1>Gestiones</h1><small>Agenda, audiencias, pasajes y cámaras</small></div></div>
+    <p>Para entrar, pegá <b>tu link personal</b>: el que te mandaron por mail o WhatsApp para abrir la página.</p>
+    <p>Se pide una sola vez. La app entra con el mismo acceso que tiene tu link, ni más ni menos.</p>
+    <label for="link">Tu link personal</label>
+    <textarea id="link" placeholder="https://script.google.com/macros/s/…/exec?acceso=…" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+    <div class="error" id="error" hidden></div>
+    <div class="botones">
+      <button type="button" class="prim" id="entrar">Entrar</button>
+      <button type="button" id="pegar">Pegar</button>
+    </div>
+    <p class="nota">El link se guarda solo en este celular. Si lo cambian o te dan uno nuevo, desde la página tocá <b>Menú → 📱 Usar otro link en esta app</b>.</p>
+  </div>
+</main>
+
+<div id="cargando" hidden>
+  <img src="icons/icon-192.png" alt="">
+  <div class="spinner" aria-label="Cargando"></div>
+  <div id="lento" hidden>
+    <p>Está tardando más de lo normal. Revisá la conexión a internet.</p>
+    <div class="botones" style="justify-content:center">
+      <button type="button" id="reintentar">Reintentar</button>
+      <button type="button" id="otroLink">Usar otro link</button>
+    </div>
+  </div>
+</div>
+
+<iframe id="app" title="Gestiones" hidden allow="clipboard-read; clipboard-write; fullscreen; camera; microphone"></iframe>
+
+<script>
+(function(){
+  'use strict';
+  const CLAVE = 'gestiones.link';
+  const $ = s => document.querySelector(s);
+  const PATRON = /^https:\/\/script\.google\.com\/(a\/[^\/]+\/)?macros\/(u\/\d+\/)?s\/[\w-]+\/exec\?[^\s]*\b(acceso|clave|ver)=[\w-]+/;
+
+  const leer = () => { try{ return localStorage.getItem(CLAVE) || ''; }catch(e){ return ''; } };
+  const guardar = v => { try{ localStorage.setItem(CLAVE, v); }catch(e){} };
+  const borrar = () => { try{ localStorage.removeItem(CLAVE); }catch(e){} };
+  const limpiar = t => String(t || '').trim().replace(/\s+/g, '');
+  const valido = t => PATRON.test(t);
+
+  // ¿Está abierta como app instalada (y no en el navegador)?
+  const instalada = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  // El link puede venir en la dirección (botón "Abrir la app" de la página): #l=...
+  function linkDeLaDireccion(){
+    const m = location.hash.match(/[#&]l=([^&]+)/);
+    if(!m) return '';
+    try{ return limpiar(decodeURIComponent(m[1])); }catch(e){ return ''; }
+  }
+
+  let timerLento = null;
+  function abrir(link){
+    $('#inicio').hidden = true;
+    $('#lento').hidden = true;
+    $('#cargando').hidden = false;
+    const f = $('#app');
+    f.hidden = false;
+    f.onload = () => { $('#cargando').hidden = true; clearTimeout(timerLento); };
+    clearTimeout(timerLento);
+    timerLento = setTimeout(() => { $('#lento').hidden = false; }, 15000);
+    f.src = link;
+  }
+
+  function pedirLink(mensaje){
+    $('#app').hidden = true; $('#app').removeAttribute('src');
+    $('#cargando').hidden = true;
+    $('#inicio').hidden = false;
+    $('#error').hidden = !mensaje; $('#error').textContent = mensaje || '';
+  }
+
+  function cambiarLink(){
+    borrar();
+    if(location.hash) history.replaceState(null, '', location.pathname + location.search);
+    $('#link').value = '';
+    pedirLink('');
+  }
+
+  $('#entrar').onclick = () => {
+    const v = limpiar($('#link').value);
+    if(!valido(v)) return pedirLink('Ese no parece un link de la página. Tiene que empezar con https://script.google.com/macros/s/ y terminar con tu acceso (…?acceso=… o …?clave=…). Copialo completo del mail o WhatsApp.');
+    guardar(v);
+    abrir(v);
+  };
+  $('#pegar').onclick = async () => {
+    try{ $('#link').value = await navigator.clipboard.readText(); }
+    catch(e){ $('#link').focus(); pedirLink('No pude leer lo copiado. Mantené apretado el cuadro y elegí "Pegar".'); }
+  };
+  $('#reintentar').onclick = () => { const l = leer(); if(l) abrir(l); };
+  $('#otroLink').onclick = cambiarLink;
+
+  // La página avisa (botón "Usar otro link" o "Link no válido") para volver a pedir el link
+  window.addEventListener('message', e => {
+    if(e.data !== 'gestiones:cambiarLink') return;
+    if(!/(^https:\/\/script\.google\.com$)|(\.googleusercontent\.com$)/.test(e.origin)) return;
+    cambiarLink();
+  });
+
+  // Aviso para instalarla (solo en el navegador)
+  let pedidoInstalar = null;
+  function mostrarInstalar(){
+    if(instalada()) return;
+    try{ if(sessionStorage.getItem('gestiones.sinAviso')) return; }catch(e){}
+    $('#instalarTexto').innerHTML = ios
+      ? '📲 Para tenerla como app: tocá <b>Compartir</b> (cuadrado con flecha) → <b>Agregar a inicio</b>.'
+      : (pedidoInstalar ? '📲 Instalala para tenerla en el menú de aplicaciones.' : '📲 Para tenerla como app: tocá ⋮ → <b>Instalar app</b> (o Agregar a la pantalla principal).');
+    $('#btnInstalar').hidden = !pedidoInstalar;
+    $('#instalar').hidden = false;
+  }
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); pedidoInstalar = e; mostrarInstalar(); });
+  window.addEventListener('appinstalled', () => { $('#instalar').hidden = true; });
+  $('#btnInstalar').onclick = async () => {
+    if(!pedidoInstalar) return;
+    pedidoInstalar.prompt();
+    try{ await pedidoInstalar.userChoice; }catch(e){}
+    pedidoInstalar = null; $('#instalar').hidden = true;
+  };
+  $('#cerrarInstalar').onclick = () => { $('#instalar').hidden = true; try{ sessionStorage.setItem('gestiones.sinAviso', '1'); }catch(e){} };
+
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+  // Arranque
+  const deLaDireccion = linkDeLaDireccion();
+  if(deLaDireccion && valido(deLaDireccion)) guardar(deLaDireccion);
+  const link = leer();
+  mostrarInstalar();
+  if(link && valido(link)) abrir(link);
+  else pedirLink('');
+})();
+</script>
+</body>
+</html>
